@@ -20,6 +20,9 @@ model = gensim.models.KeyedVectors.load_word2vec_format(
     'GoogleNews-vectors-negative300.bin', binary=True, limit=500000
 )
 
+#Solving method, either wiki or word2Vec
+solvingMethod = 'word2Vec'
+
 #Additional words that need to be removed
 removedWords = ["besides", "also", "likewise", "too", "aswell", "st", "th", "i", "ane" \
 				"may", "many", "one", "new", "two", "first", "use", "used", "known", \
@@ -43,7 +46,7 @@ def getWikiWords(inputWord):
 			#Loop through the words and add it to content
 			for currWord in words_pres:
 				#Convert to lower case
-				currWord = currWord.lower();
+				currWord = currWord.lower()
 				#If it has a space, skip it
 				if ' ' in currWord:
 					continue
@@ -77,7 +80,7 @@ def getWikiWords(inputWord):
 
 	#Adjust the occurance count to be a weightint 0-1
 	valueRange = content.values()
-	minVal = min(valueRange);
+	minVal = min(valueRange)
 	maxVal = max(valueRange)
 	newMin = 0
 	newMax = 1
@@ -98,21 +101,33 @@ def getWikiWords(inputWord):
 #Uses word2Vec to get the most similar words
 def getWord2VecWords(inputWord):
 	#Get the 500 most similar words
-	relatedWords = model.similar_by_word(inputWord, 10)
-
+	try:
+		relatedWords = model.similar_by_word(inputWord, 500)
+	except:
+		#If the word was not present in this model, use wiki words
+		return getWikiWords(inputWord)
 	#Create a dictionary and add all the words to it
-	content = dict();
+	content = dict()
 	#Loop through the gensim words, removing those with spaces and the actual word
 	for i in relatedWords:
-		print(i)
 		#Covert the word to lowercase
-
+		currWord = i[0].lower()
 		#If it has special characters, ignore it
-
+		if ' ' in currWord:
+			continue
+		#Remove punctiation and numbers
+		currWord = regex.sub('', currWord)
 		#If it is based on the original word, ignore it
-
+		if inputWord in currWord:
+			continue
 		#Add it to the dictionary with the correct weight, if it is not already
+		#Remove empty words
+		if(currWord):
+			if currWord not in content:
+				content[currWord] = i[1]
 
+	#Return the dictionary of words
+	return content
 
 
 #Returns synonyms for a word
@@ -145,10 +160,13 @@ def getSynonyms(inputWord):
 	return set(synonyms)
 
 #Adds a word inputWord and its related words to a word map G
-def addWordToMap(G, inputWord):
+def addWordToMap(G, inputWord, method):
 	G.add_node(inputWord)
 	#Add all the related words to the map with edges
-	relatedWords = getWikiWords(inputWord)
+	if(method == 'wiki'):
+		relatedWords = getWikiWords(inputWord)
+	else:
+		relatedWords = getWord2VecWords(inputWord)
 	for i in relatedWords:
 		G.add_node(i)
 		G.add_edge(inputWord, i, weight = relatedWords[i])
@@ -157,6 +175,7 @@ def addWordToMap(G, inputWord):
 		#G = addSynonymsToNode(G, inputWord, i, relatedWords[i])
 
 	return G
+
 
 #Adds all the synonymns for synWord to an existing node inputNode in map G
 #The weighting for synonyms is 90% of the actual connector, to avoid overshadowing the word
@@ -169,17 +188,6 @@ def addSynonymsToNode(G, inputNode, synWord, weighting):
 			G.add_edge(inputNode, word, weight = int(weighting*0.8))
 			G.add_edge(word, inputNode, weight = int(weighting*0.8))
 	return G
-
-#Find connection between two words, assuming one deegree of seperation
-def findConnection(G, inputNode1, inputNode2):
-	node1Dir = list(G.successors(inputNode1))
-	node2Dir = list(G.successors(inputNode2))
-	connections = np.empty()
-	#Check if there are any in common
-	for nodes1 in node1Dir:
-		if nodes1 in node2Dir:
-			print(nodes1)
-
 
 #Creates a drawing of a wrd map
 def drawNetwork(G):
@@ -228,13 +236,13 @@ class WordConnections:
 		self.connections = connectionDictionary
 		self.connectionNodes = pathList
 
-	#Return the dictionary of all the connections and their strength
+	#Return a list of the nodes that are being connected
 	def getNodes(self):
-		return wordList
+		return self.wordList
 
 	#Retuns the connection words between the nodes
 	def getConnectionNodes(self):
-		return connectionNodes
+		return self.connectionNodes
 
 	#Prints the top 10 connections, sorted by weight
 	def printConnections(self):
@@ -248,15 +256,17 @@ class WordConnections:
 
 class Spymaster():
 	#Initialize the class with all the input words
-	def __init__(self, teamColorInput, redWordsInput, blueWordsInput, blackWordInput):
+	def __init__(self, teamColorInput, redWordsInput, blueWordsInput, neutralWordsInput, blackWordInput):
+		print("Beginning game as spymaster")
 		self.teamColor = teamColorInput.lower()
-		if(teamColor == "red"):
+		if(teamColorInput == "red"):
 			self.teamWords = redWordsInput
 			self.enemyWords = blueWordsInput
 		else:
 			self.teamWords = blueWordsInput
 			self.enemyWords = redWordsInput
 		self.blackWord = blackWordInput
+		self.neutralWords = neutralWordsInput
 
 		#Initialize the graph
 		self.G = nx.DiGraph()
@@ -264,44 +274,137 @@ class Spymaster():
 		#Add all the words to the graph
 		for i in self.teamWords:
 			print("Calculating map for", i)
-			G = addWordToMap(G, i)
+			self.G = addWordToMap(self.G, i, solvingMethod)
 		for i in self.enemyWords:
 			print("Calculating map for", i)
-			G = addWordToMap(G, i)
+			self.G = addWordToMap(self.G, i, solvingMethod)
+		for i in self.neutralWords:
+			print("Calculating map for", i)
+			self.G = addWordToMap(self.G, i, solvingMethod)
 		print("Calculating map for", self.blackWord)
-		G = addWordToMap(G, self.blackWord)
+		self.G = addWordToMap(self.G, self.blackWord, solvingMethod)
 
-	#Generates the array that shows all of the possible decisions and their strengths
-	def generateDecisionMatrix(self):
-		#The matrix has the following format for each row (13 columns)
-		#ConnectionWord NumNodes Node1name Node2Name Node3Name Node4Name
-		#Node1Strength Node2Strength Node3Strength Node4Strength
-		#MaximumEnemyWordStrength MaxNeutralWordStrength BlackWordStrength
-		
+		print("Map of all words created")
+
+	#Generates the list of data that shows all of the possible decisions and their strengths
+	def generateDecisionMatrix(self, teamWordsInput, enemyWordsInput, neutralWordsInput, blackWordsInput):
+		print("Start creating decision matrix")
+		decisionList = []
 		#Loop over all the possible connections of words for the team
 		#Calculate for combinations of 2, 3, 4
-		comb2 = list(combinations(self.teamWords, 2))
-		comb3 = list(combinations(self.teamWords, 3))
-		comb4 = list(combinations(self.teamWords, 4))
-		comb = comb2 + comb3 + comb4
+		comb = list()
+
+		if(len(teamWordsInput) >= 2):
+			comb.extend(list(combinations(self.teamWords, 2)))
+		if(len(teamWordsInput) >= 3):
+			comb.extend(list(combinations(self.teamWords, 3)))
+		if(len(teamWordsInput) >= 4):
+			comb.extend(list(combinations(self.teamWords, 4)))
+
+		#Where i is the words that need to be combinded over all possible combinations
 		for i in comb:
-			combConnection = WordConnections(G, i);
+			#Generate the possible connections over i
+			combConnection = WordConnections(self.G, i);
+			for connectionNode in combConnection.getConnectionNodes():
+				#Get the strenth between the connection word and the others
+				nodeStrength = []
+				for j in i: #i is all the words being connected
+					print(connectionNode, j)
+					nodeStrength.append(self.G[j][connectionNode]["weight"])
+
+				#Find the max strength between enemy words and the connector
+				enemyStrength = []
+				for j in enemyWordsInput:
+					enemyStrength.append(self.G[j][connectionNode]["weight"])
+				#Find the max strength between the neutral words and the connector
+				neutralStrength = []
+				for j in neutralWordsInput:
+					neutralStrength.append(self.G[j][connectionNode]["weight"])
+				#Find the black word strength to the connection node
+				blackStrength = self.G[blackWordsInput][connectionNode]["weight"]
+				
+				#Create the decision data and push it to the list
+				newDecisionData = DecisionData(connectionNode, len(i), i, nodeStrength, \
+					max(enemyStrength), max(neutralStrength), blackStrength)
+				decisionList.append(newDecisionData)
+
+		#If there is only one word left, add it to the decision list
+		if(len(teamWordsInput) == 1):
+			nodeName = teamWordsInput[0]
+			#Get the most relevant words
+			if(solvingMethod == 'wiki'):
+				relatedWords = getWikiWords(nodeName)
+			else:
+				relatedWords = getWord2VecWords(nodeName)
+			
+			#Add all the words to the decision list
+			for i in relatedWords:
+				nodeStrength = self.G[i][nodeName]["weight"]
+
+				#Find the max strength between enemy words and the connector
+				enemyStrength = []
+				for j in enemyWordsInput:
+					enemyStrength.append(self.G[j][i]["weight"])
+				#Find the max strength between the neutral words and the connector
+				neutralStrength = []
+				for j in neutralWordsInput:
+					neutralStrength.append(self.G[j][i]["weight"])
+				#Find the black word strength to the connection node
+				blackStrength = self.G[blackWordsInput][i]["weight"]
+
+				#Create the decision data and push it to the list
+				newDecisionData = DecisionData(i, 1, nodeName, nodeStrength, \
+					max(enemyStrength), max(neutralStrength), blackStrength)
+				decisionList.append(newDecisionData)
+
+		return decisionList
+
+	#Class for storing all the data related for decision making
+	class DecisionData():
+		#Initializing the class
+		def __init__(self, connectionWord, numNodes, nodeNames, nodeStrength, \
+			enemyStrength, neutralStrength, blackStrength):
+			#Word that connects the nodes
+			self.connectionWord = connectionWord
+			#Number of nodes that are being connected which is 1-4
+			self.numNodes = numNodes
+			#Names of the nodes being connected, 1-4 values
+			self.nodeNames = nodeNames
+			#Strength of the node to connection word, 1-4 values
+			self.nodeStrength = nodeStrength
+			#Maximum strength between an enemy word and the connection
+			self.maxEnemyStrength = enemyStrength
+			#Maximum strength between a neutral word and the connection
+			self.maxNeutralStrength = neutralStrength
+			#Maximum strength between the black word and the connection
+			self.maxBlackStrength = blackStrength
 
 
 
 def main():
 
 	#Create a graph of the word map
-	G = nx.DiGraph()
+	#G = nx.DiGraph()
 
 	#words = ["cat", "dog", "fox"]
 	#for i in words:
 	#	print("Add", i, "to map")
-	#	G = addWordToMap(G, i)
+	#	G = addWordToMap(G, i, solvingMethod)
 	#connectA = WordConnections(G, words)
 	#connectA.printConnections()
 
-	getWord2VecWords("cat")
+	team = "red"
+	redWords = ["car", "cross", "racket", "link", "chick", \
+		"oil", "band", "train", "strike"]
+	blueWords = ["cell", "force", "phoenix", "contract", \
+		"capital", "slug", "log", "fish"]
+	neutralWords = ["stream", "plastic", "back", "apple", \
+		"game", "casino", "turkey"]
+	blackWord = "hollywood"
+
+	newGame = Spymaster(team, redWords, blueWords, neutralWords, blackWord)
+
+	print(newGame.generateDecisionMatrix(redWords, blueWords, neutralWords, blackWord))
 
 if __name__ == "__main__":
 	main()
