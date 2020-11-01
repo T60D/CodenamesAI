@@ -457,7 +457,7 @@ class Spymaster():
 					decisionList.append(newDecisionData)
 
 		#If there is only one word left, add it to the decision list
-		if(len(teamWordsInput) == 1 or ((not decisionList) and len(teamWordsInput) < 3)):
+		if(len(teamWordsInput) == 1 or ((not decisionList) and len(teamWordsInput) < 4)):
 			nodeName = teamWordsInput[0]
 			#Get the most relevant words
 			if(solvingMethod == 'wiki'):
@@ -506,7 +506,7 @@ class Spymaster():
 	#Returns the decision with the maximal value based on the current state of the game
 	def makeGreedyDecision(self):
 		#Generate list of possible decisions from current game state
-		decisionList = self.generateDecisionMatrix(self.teamWords, self.enemyWords, self.neutralWords, self.blackWord)
+		decisionList = self.generateDecisionMatrix(self.teamWords, self.enemyWords, self.neutralWords, self.blackWord)		
 		#The first decision has the highest value
 		decision = decisionList[0]
 		#Print it out
@@ -533,7 +533,10 @@ class Spymaster():
 		for i in decisionList:
 			newPath = DecisionPath(self.teamWords)
 			newPath.addDecision(i)
-			queue.append(newPath)
+			if(newPath.pathComplete()):
+				finishedPaths.append(newPath)
+			else:
+				queue.append(newPath)
 
 		#Loop until the queue is empty
 		while(queue):
@@ -541,9 +544,7 @@ class Spymaster():
 			currentPath = queue[0]
 			#Get list of decisions that could be made from this new state
 			newTeamWords = currentPath.getRemainingWords()
-			if(not newTeamWords):
-				del queue[0]
-				continue
+
 			#Assume there are no enemy words
 			newEnemyWords = []
 			newDecisionList = self.generateDecisionMatrix(newTeamWords, newEnemyWords, self.neutralWords, self.blackWord)
