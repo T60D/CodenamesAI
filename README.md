@@ -4,9 +4,10 @@ This is a algorithm that is capable of playing the spymaster role in a game of c
 
 ## Installation
 
-Download this repository
-Install all of the packages required
-Download the pretrained Word2Vec model
+Download this repository  
+Install all of the packages required  
+Download the pretrained [Word2Vec model](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit)  
+
 
 ## Usage
 
