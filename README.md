@@ -31,10 +31,10 @@ Enter the neutral words, seperated by commas [a,b,c]: apple,banana,pear
 Enter the black word [a]: piano
 ```
 
-Once the program initializes the map(this may take awhile if using wikipedia), you can choose decisions to make:
-gg : Returns the best decision given the current game state
-fs : Returns the best decision given current and future game states (may take awhile to compute)
-rm word : Removes the given "word" from the game
-add word team : Adds a given "word" to a specific team. You cannot add words that were not in the originally calculated map
+Once the program initializes the map(this may take awhile if using wikipedia), you can choose decisions to make:  
+gg : Returns the best decision given the current game state  
+fs : Returns the best decision given current and future game states (may take awhile to compute)  
+rm word : Removes the given "word" from the game  
+add word team : Adds a given "word" to a specific team. You cannot add words that were not in the originally calculated map    
 
 The game will end once one of the the teams is out of words.
