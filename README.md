@@ -18,6 +18,8 @@ solvingMethod = 'word2Vec'
 
 Run the codenames.py program
 When it asks for it, enter the data about the game (example below)
+
+```python
 _______________________________
 -----Starting Codenames AI-----        
 ===============================        
@@ -27,6 +29,7 @@ Enter the red words, seperated by commas [a,b,c]: chair,table,bench
 Enter the blue words, seperated by commas [a,b,c]: car,dog,rabbit
 Enter the neutral words, seperated by commas [a,b,c]: apple,banana,pear
 Enter the black word [a]: piano
+'''
 
 Once the program initializes the map(this may take awhile if using wikipedia), you can choose decisions to make:
 gg : Returns the best decision given the current game state
