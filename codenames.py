@@ -22,7 +22,7 @@ model = gensim.models.KeyedVectors.load_word2vec_format(
 )
 
 #Solving method, either wiki or word2Vec
-solvingMethod = 'wiki'
+solvingMethod = 'word2Vec'
 
 #Additional words that need to be removed
 removedWords = ["besides", "also", "likewise", "too", "aswell", "st", "th", "i", "ane" \
